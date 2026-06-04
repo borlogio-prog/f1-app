@@ -5,6 +5,7 @@ import Session from './pages/Session'
 import Telemetry from './pages/Telemetry'
 import Live from './pages/Live'
 import Map from './pages/Map'
+import LiveTiming from './pages/LiveTiming'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/live" element={<Live />} />
+            <Route path="/timing" element={<LiveTiming />} />
             <Route path="/session/:sessionKey" element={<Session />} />
             <Route path="/session/:sessionKey/map" element={<Map />} />
             <Route path="/session/:sessionKey/telemetry/:driverNumber" element={<Telemetry />} />

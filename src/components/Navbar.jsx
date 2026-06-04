@@ -18,6 +18,7 @@ export default function Navbar() {
           {[
             { to: '/', label: 'Calendario' },
             { to: '/live', label: '● Live' },
+            { to: '/timing', label: 'Timing' },
           ].map(({ to, label }) => (
             <Link
               key={to}
