@@ -3,11 +3,38 @@ import { useNavigate } from 'react-router-dom'
 import { openf1 } from '../services/openf1'
 
 const SESSION_LABELS = {
-  Practice: 'Prove Libere',
-  Qualifying: 'Qualifiche',
-  Race: 'Gara',
-  'Sprint Qualifying': 'Sprint Qual.',
-  Sprint: 'Sprint',
+  Practice: 'PL', Qualifying: 'Q', Race: 'Gara',
+  'Sprint Qualifying': 'SQ', Sprint: 'Sprint',
+}
+const SESSION_COLORS = {
+  Practice: '#2a2a3a', Qualifying: '#2a1f00', Race: '#2a0000',
+  'Sprint Qualifying': '#1a1a2a', Sprint: '#1a0a2a',
+}
+const SESSION_TEXT = {
+  Practice: '#888', Qualifying: '#f59e0b', Race: '#e10600',
+  'Sprint Qualifying': '#a78bfa', Sprint: '#c084fc',
+}
+
+const FLAGS = {
+  'Australia': '🇦🇺', 'Bahrain': '🇧🇭', 'Saudi Arabia': '🇸🇦',
+  'Japan': '🇯🇵', 'China': '🇨🇳', 'United States': '🇺🇸',
+  'Italy': '🇮🇹', 'Monaco': '🇲🇨', 'Spain': '🇪🇸', 'Canada': '🇨🇦',
+  'Austria': '🇦🇹', 'Great Britain': '🇬🇧', 'United Kingdom': '🇬🇧',
+  'Hungary': '🇭🇺', 'Belgium': '🇧🇪', 'Netherlands': '🇳🇱',
+  'Azerbaijan': '🇦🇿', 'Singapore': '🇸🇬', 'Mexico': '🇲🇽',
+  'Brazil': '🇧🇷', 'Qatar': '🇶🇦', 'UAE': '🇦🇪', 'Abu Dhabi': '🇦🇪',
+}
+
+function getFlag(country) {
+  if (!country) return '🏁'
+  for (const [k, v] of Object.entries(FLAGS)) {
+    if (country.toLowerCase().includes(k.toLowerCase())) return v
+  }
+  return '🏁'
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })
 }
 
 export default function Home() {
@@ -21,9 +48,13 @@ export default function Home() {
   useEffect(() => {
     openf1.meetings(year)
       .then(data => {
-        const sorted = [...data].sort((a, b) => new Date(b.date_start) - new Date(a.date_start))
+        const sorted = [...data].sort((a, b) => new Date(a.date_start) - new Date(b.date_start))
         setMeetings(sorted)
-        if (sorted.length > 0) setExpanded(sorted[0].meeting_key)
+        // Auto-apri il prossimo GP o l'ultimo passato
+        const next = sorted.find(m => new Date(m.date_end ?? m.date_start) > new Date())
+        const last = sorted.filter(m => new Date(m.date_end ?? m.date_start) <= new Date()).pop()
+        if (next) setExpanded(next.meeting_key)
+        else if (last) setExpanded(last.meeting_key)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
@@ -36,64 +67,111 @@ export default function Home() {
       .catch(console.error)
   }, [expanded])
 
-  const formatDate = (iso) =>
-    new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })
-
-  const isPast = (iso) => new Date(iso) < new Date()
-
   if (loading) return (
-    <div className="flex items-center justify-center h-64 text-zinc-400">
-      Caricamento calendario...
+    <div className="flex items-center justify-center h-64" style={{ color: '#444' }}>
+      <div className="text-center">
+        <div className="text-4xl mb-3">⏱</div>
+        <p>Caricamento calendario...</p>
+      </div>
     </div>
   )
 
-  return (
-    <div className="max-w-4xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-white mb-6">
-        Stagione F1 <span className="text-red-500">{year}</span>
-      </h1>
+  const now = new Date()
 
-      <div className="space-y-3">
-        {meetings.map((m) => {
-          const past = isPast(m.date_end ?? m.date_start)
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="flex items-baseline gap-3 mb-8">
+        <h1 className="text-2xl font-bold text-white">Stagione</h1>
+        <span className="text-2xl font-bold" style={{ color: '#e10600' }}>{year}</span>
+        <span className="text-sm ml-auto" style={{ color: '#444' }}>{meetings.length} gran premi</span>
+      </div>
+
+      <div className="space-y-2">
+        {meetings.map((m, idx) => {
+          const isPast = new Date(m.date_end ?? m.date_start) < now
+          const isNext = !isPast && meetings.filter(x => new Date(x.date_end ?? x.date_start) >= now)[0]?.meeting_key === m.meeting_key
           const isOpen = expanded === m.meeting_key
           const mSessions = sessions[m.meeting_key] ?? []
 
           return (
-            <div key={m.meeting_key} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div key={m.meeting_key}>
               <button
-                className="w-full flex items-center justify-between p-4 hover:bg-zinc-800 transition-colors text-left"
+                className="w-full text-left transition-all"
                 onClick={() => setExpanded(isOpen ? null : m.meeting_key)}
+                style={{
+                  background: isOpen ? '#12121a' : isNext ? '#12101a' : 'transparent',
+                  border: `1px solid ${isNext ? '#2a1a3a' : isOpen ? '#1e1e2a' : 'transparent'}`,
+                  borderRadius: isOpen ? '12px 12px 0 0' : 12,
+                  padding: '12px 16px',
+                }}
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-zinc-500 text-sm w-6 text-center font-mono">{m.meeting_key}</span>
-                  <div>
-                    <div className="font-semibold text-white">{m.meeting_name}</div>
-                    <div className="text-sm text-zinc-400">{m.country_name} · {formatDate(m.date_start)}</div>
+                <div className="flex items-center gap-4">
+                  <span className="text-lg w-6 text-center" style={{ opacity: isPast ? 0.4 : 1 }}>
+                    {getFlag(m.country_name)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="font-semibold text-sm"
+                        style={{ color: isPast ? '#555' : isNext ? '#fff' : '#ccc' }}
+                      >
+                        {m.meeting_name}
+                      </span>
+                      {isNext && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#e10600', color: '#fff' }}>
+                          PROSSIMO
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: '#444' }}>
+                      {m.country_name} · {formatDate(m.date_start)}
+                      {m.date_end && m.date_end !== m.date_start ? ` – ${formatDate(m.date_end)}` : ''}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!past && <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">In arrivo</span>}
-                  <span className="text-zinc-500">{isOpen ? '▲' : '▼'}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono" style={{ color: '#333' }}>R{idx + 1}</span>
+                    <span style={{ color: '#333', fontSize: 10 }}>{isOpen ? '▲' : '▼'}</span>
+                  </div>
                 </div>
               </button>
 
               {isOpen && (
-                <div className="border-t border-zinc-800 p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div
+                  style={{
+                    background: '#12121a',
+                    border: '1px solid #1e1e2a',
+                    borderTop: 'none',
+                    borderRadius: '0 0 12px 12px',
+                    padding: '12px 16px 16px',
+                  }}
+                >
                   {mSessions.length === 0 ? (
-                    <span className="text-zinc-500 text-sm col-span-3">Sessioni non ancora disponibili</span>
+                    <p className="text-xs" style={{ color: '#444' }}>Sessioni non ancora disponibili</p>
                   ) : (
-                    mSessions.map(s => (
-                      <button
-                        key={s.session_key}
-                        onClick={() => navigate(`/session/${s.session_key}`)}
-                        className="flex flex-col p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors text-left border border-zinc-700 hover:border-red-500"
-                      >
-                        <span className="text-xs text-red-400 font-medium">{SESSION_LABELS[s.session_type] ?? s.session_type}</span>
-                        <span className="text-white text-sm font-semibold mt-1">{s.session_name}</span>
-                        <span className="text-zinc-400 text-xs mt-1">{formatDate(s.date_start)}</span>
-                      </button>
-                    ))
+                    <div className="flex flex-wrap gap-2">
+                      {mSessions.map(s => {
+                        const sType = s.session_type
+                        return (
+                          <button
+                            key={s.session_key}
+                            onClick={() => navigate(`/session/${s.session_key}`)}
+                            className="flex flex-col items-start px-3 py-2 rounded-lg transition-all hover:brightness-125"
+                            style={{
+                              background: SESSION_COLORS[sType] ?? '#1a1a24',
+                              border: `1px solid ${SESSION_TEXT[sType] ?? '#333'}22`,
+                              minWidth: 80,
+                            }}
+                          >
+                            <span className="font-bold text-xs" style={{ color: SESSION_TEXT[sType] ?? '#888' }}>
+                              {SESSION_LABELS[sType] ?? sType}
+                            </span>
+                            <span className="text-[10px] mt-0.5" style={{ color: '#555' }}>
+                              {formatDate(s.date_start)}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )}
